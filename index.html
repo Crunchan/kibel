@@ -3,23 +3,367 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Odtwarzacz</title>
+  <title>Kibel</title>
   <style>
+    :root {
+      --primary: #8a2be2;
+      --primary-hover: #9d4edd;
+      --bg: #0d0d0c;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #ffffff;
+      --text-muted: #a0a0a0;
+    }
+
     body {
       margin: 0;
-      background-color: #121212;
+      padding: 0;
+      background-color: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
     }
-    audio {
+
+    /* Tło z poświatą */
+    .bg-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(138, 43, 226, 0.15) 0%, rgba(0,0,0,0) 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .player-card {
+      position: relative;
+      z-index: 2;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 24px;
       width: 90%;
-      max-width: 500px;
+      max-width: 380px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .player-card:hover {
+      transform: translateY(-4px);
+    }
+
+    /* Obrazek kibla w kinowym klimacie */
+    .cover-art {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      object-fit: cover;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+      margin-bottom: 24px;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 0%, #b0b0b0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin: 0 0 28px 0;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    /* Ukryty natywny odtwarzacz, sterujemy nim przez customowy interfejs */
+    audio {
+      display: none;
+    }
+
+    /* Customowy interfejs audio */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .progress-area {
+      width: 100%;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .progress-bar::after {
+      content: '';
+      position: absolute;
+      right: -5px;
+      top: -3px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .progress-bar-container:hover .progress-bar::after {
+      opacity: 1;
+    }
+
+    .time-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      margin-top: 8px;
+    }
+
+    .control-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+      color: var(--text);
+      transform: scale(1.05);
+    }
+
+    .play-pause-btn {
+      width: 64px;
+      height: 64px;
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 50%;
+      box-shadow: 0 8px 20px rgba(138, 43, 226, 0.3);
+    }
+
+    .play-pause-btn:hover {
+      transform: scale(1.08);
+      background: #f0f0f0;
+      color: #000;
+    }
+
+    .play-pause-btn svg {
+      width: 28px;
+      height: 28px;
+      fill: currentColor;
+    }
+
+    .secondary-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+      color: var(--text-muted);
+    }
+
+    .volume-slider {
+      width: 80px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.15);
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text);
+      cursor: pointer;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 16px;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.5px;
+      z-index: 2;
     }
   </style>
 </head>
 <body>
-  <audio src="kibel.mp3" controls preload="auto"></audio>
+
+  <div class="bg-glow"></div>
+
+  <div class="player-card">
+    <!-- Wgrane wesołe, dramatyczne zdjęcie kibla z darmowego banku AI -->
+    <img src="https://images.unsplash.com/photo-1564540574859-0dfb63985953?q=80&w=1000&auto=format&fit=crop" class="cover-art" alt="Kibel">
+    
+    <h1>Kibel</h1>
+    <p class="subtitle">Wersja Szkolna (Censored)</p>
+
+    <!-- Twój oryginalny plik audio -->
+    <audio id="audio" src="kibel.mp3"></audio>
+
+    <div class="controls">
+      <div class="progress-area">
+        <div class="progress-bar-container" id="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="time-info">
+          <span id="current-time">0:00</span>
+          <span id="duration">0:00</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="control-btn secondary-btn" onclick="skip(-10)" title="-10s">
+          <svg viewBox="0 0 24 24"><path d="M12.5 3c-4.97 0-9 4.03-9 9H1l3.89 4 4.11-4H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.95-2.05l-1.42 1.42C8.21 20.1 10.48 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1.5 6h1.5v3.5l2.5 1.5-.75 1.25L11 13.5V9z"/></svg>
+        </button>
+
+        <button class="control-btn play-pause-btn" id="play-btn" onclick="togglePlay()">
+          <!-- Ikona PLAY -->
+          <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <!-- Ikona PAUSE (ukryta na start) -->
+          <svg id="pause-icon" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+
+        <button class="control-btn secondary-btn" onclick="skip(10)" title="+10s">
+          <svg viewBox="0 0 24 24"><path d="M12.5 3c-4.97 0-9 4.03-9 9H1l3.89 4 4.11-4H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.95-2.05l-1.42 1.42C8.21 20.1 10.48 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1.5 6h1.5v3.5l2.5 1.5-.75 1.25L11 13.5V9z" transform="scale(-1, 1) translate(-25, 0)"/></svg>
+        </button>
+      </div>
+
+      <div class="volume-control">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        <input type="range" class="volume-slider" id="volume" min="0" max="1" step="0.1" value="0.8" oninput="setVolume(this.value)">
+      </div>
+    </div>
+  </div>
+
+  <footer>crunchan.github.io/kibel/</footer>
+
+  <script>
+    const audio = document.getElementById('audio');
+    const playBtn = document.getElementById('play-btn');
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
+    const progressBar = document.getElementById('progress-bar');
+    const progressContainer = document.getElementById('progress-container');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationEl = document.getElementById('duration');
+
+    function togglePlay() {
+      if (audio.paused) {
+        audio.play();
+        playIcon.style.display = 'none';
+        pauseIcon.style.display = 'block';
+      } else {
+        audio.pause();
+        playIcon.style.display = 'block';
+        pauseIcon.style.display = 'none';
+      }
+    }
+
+    function skip(seconds) {
+      audio.currentTime += seconds;
+    }
+
+    function setVolume(value) {
+      audio.volume = value;
+    }
+
+    // Aktualizacja postępu odtwarzania
+    audio.addEventListener('timeupdate', () => {
+      const { currentTime, duration } = audio;
+      if (duration) {
+        const progressPercent = (currentTime / duration) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+        currentTimeEl.textContent = formatTime(currentTime);
+      }
+    });
+
+    // Wczytanie długości utworu
+    audio.addEventListener('loadedmetadata', () => {
+      durationEl.textContent = formatTime(audio.duration);
+    });
+
+    // Przewijanie kliknięciem na pasek
+    progressContainer.addEventListener('click', (e) => {
+      const width = progressContainer.clientWidth;
+      const clickX = e.offsetX;
+      const duration = audio.duration;
+      if (duration) {
+        audio.currentTime = (clickX / width) * duration;
+      }
+    });
+
+    // Formatowanie sekund na M:SS
+    function formatTime(time) {
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    // Resety po zakończeniu
+    audio.addEventListener('ended', () => {
+      playIcon.style.display = 'block';
+      pauseIcon.style.display = 'none';
+      progressBar.style.width = '0%';
+      currentTimeEl.textContent = '0:00';
+    });
+  </script>
 </body>
-</html> 
+</html>
